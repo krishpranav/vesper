@@ -98,10 +98,16 @@ vesper user --download
 vesper user --update
 ```
 
-### Save JSON Report
+### Save Report
 
 ```bash
-vesper user --output report.json
+# Auto-detected from file extension
+vesper user --output report.json     # JSON format
+vesper user --output results.csv     # CSV format (for spreadsheets/OSINT tools)
+vesper user --output results.txt     # Human-readable text report
+
+# Explicit format override
+vesper user --output results --format csv
 ```
 
 ### Test Mode (Validate Site Configurations)
@@ -155,7 +161,8 @@ vesper --help
 | `--tor` | `-t` | Use Tor proxy (127.0.0.1:9050) |
 | `--screenshot` | `-s` | Take screenshots of found profiles |
 | `--download` | `-d` | Download profile content |
-| `--output <FILE>` | `-o` | Save scan results as JSON |
+| `--output <FILE>` | `-o` | Save scan results (format auto-detected from extension) |
+| `--format <FORMAT>` | | Export format: `json`, `csv`, or `txt` (overrides extension) |
 | `--update` | | Update site database from Sherlock |
 | `--database <PATH>` | | Use custom database file |
 | `--site <SITE>` | | Check specific site only |

@@ -2,10 +2,11 @@ mod chrome;
 mod cli;
 mod core;
 mod downloader;
+mod export;
 mod logger;
 mod scraper;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use cli::Cli;
 use colored::Colorize;
 use core::{filter_sites, load_site_data, ResultStatus};
@@ -13,30 +14,28 @@ use downloader::DownloaderRegistry;
 use logger::Logger;
 use scraper::{check_with_adaptive_strategy, IntelligentScraper};
 use serde::Serialize;
-use std::fs;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Semaphore;
 use tracing::info;
 
 #[derive(Debug, Serialize)]
-struct UsernameScanReport {
-    username: String,
-    checked: usize,
-    found: usize,
-    confirmed: usize,
-    likely: usize,
-    blocked: usize,
-    elapsed_secs: f64,
-    results: Vec<core::ScanResult>,
+pub struct UsernameScanReport {
+    pub username: String,
+    pub checked: usize,
+    pub found: usize,
+    pub confirmed: usize,
+    pub likely: usize,
+    pub blocked: usize,
+    pub elapsed_secs: f64,
+    pub results: Vec<core::ScanResult>,
 }
 
 #[derive(Debug, Serialize)]
-struct ScanReport {
-    generated_at: String,
-    database_sites: usize,
-    usernames: Vec<UsernameScanReport>,
+pub struct ScanReport {
+    pub generated_at: String,
+    pub database_sites: usize,
+    pub usernames: Vec<UsernameScanReport>,
 }
 
 #[tokio::main]
@@ -78,7 +77,8 @@ async fn main() -> Result<()> {
     }
 
     if let Some(output_path) = &args.output {
-        write_scan_report(output_path, database.len(), reports)?;
+        let format = args.output_format();
+        export::write_report(output_path, database.len(), reports, format)?;
     }
 
     Ok(())
@@ -236,33 +236,6 @@ async fn scan_username(
         elapsed_secs: elapsed.as_secs_f64(),
         results,
     })
-}
-
-fn write_scan_report(
-    output_path: &str,
-    database_sites: usize,
-    usernames: Vec<UsernameScanReport>,
-) -> Result<()> {
-    let report = ScanReport {
-        generated_at: chrono::Utc::now().to_rfc3339(),
-        database_sites,
-        usernames,
-    };
-
-    if let Some(parent) = Path::new(output_path).parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create report directory: {:?}", parent))?;
-        }
-    }
-
-    let content = serde_json::to_string_pretty(&report)?;
-    fs::write(output_path, content)
-        .with_context(|| format!("Failed to write scan report: {}", output_path))?;
-
-    println!("Report written to {}", output_path);
-
-    Ok(())
 }
 
 async fn run_tests(args: &Cli, database: &core::SiteDatabase) -> Result<()> {

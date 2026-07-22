@@ -1,3 +1,4 @@
+use crate::export::{self, ExportFormat};
 use clap::Parser;
 
 #[derive(Parser, Debug, Clone)]
@@ -38,6 +39,10 @@ pub struct Cli {
     #[arg(short = 'o', long = "output", value_name = "FILE")]
     pub output: Option<String>,
 
+    /// Export format for --output: json, csv, or txt (auto-detected from extension if omitted)
+    #[arg(long = "format", value_name = "FORMAT", value_parser = ["json", "csv", "txt"])]
+    pub format: Option<String>,
+
     #[arg(long = "test")]
     pub test: bool,
 }
@@ -59,5 +64,13 @@ impl Cli {
         self.database
             .clone()
             .unwrap_or_else(|| "data.json".to_string())
+    }
+
+    /// Resolve the export format from --format flag, output file extension, or default to JSON.
+    pub fn output_format(&self) -> ExportFormat {
+        export::resolve_format(
+            self.format.as_deref(),
+            self.output.as_deref().unwrap_or(""),
+        )
     }
 }
