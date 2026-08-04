@@ -6,7 +6,7 @@ mod export;
 mod logger;
 mod scraper;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use cli::Cli;
 use colored::Colorize;
 use core::{filter_sites, load_site_data, ResultStatus};
@@ -70,9 +70,28 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    let mut target_usernames = args.usernames.clone();
+    
+    // Read usernames from file if provided
+    if let Some(input_path) = &args.input {
+        let content = std::fs::read_to_string(input_path)
+            .with_context(|| format!("Failed to read input file: {}", input_path))?;
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                target_usernames.push(trimmed.to_string());
+            }
+        }
+    }
+    
+    if target_usernames.is_empty() {
+        println!("Error: No usernames provided. Use positional arguments or --input <FILE>.");
+        return Ok(());
+    }
+
     let mut reports = Vec::new();
 
-    for username in &args.usernames {
+    for username in &target_usernames {
         reports.push(scan_username(username, &args, &database).await?);
     }
 
@@ -110,7 +129,7 @@ async fn scan_username(
     }
 
     let proxy_pool = Vec::new();
-    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool)?);
+    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool, args.timeout)?);
 
     let chrome = if args.screenshot {
         let mut chrome = chrome::Chrome::new(
@@ -138,6 +157,8 @@ async fn scan_username(
     let blocked_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let mut tasks = Vec::new();
 
+    let pb = logger.create_progress_bar(sites.len() as u64, &format!("Scanning {}...", username));
+
     for (site_name, site_data) in sites.iter() {
         let username = username.to_string();
         let site_name = site_name.clone();
@@ -152,6 +173,7 @@ async fn scan_username(
         let downloader_registry = downloader_registry.clone();
         let args = args.clone();
         let logger = logger.clone();
+        let pb = pb.clone();
 
         let task = tokio::spawn(async move {
             let _permit = semaphore.acquire().await.unwrap();
@@ -202,6 +224,7 @@ async fn scan_username(
                 logger.print_not_found(&site_name);
             }
 
+            pb.inc(1);
             result
         });
 
@@ -214,6 +237,8 @@ async fn scan_username(
             results.push(result);
         }
     }
+
+    pb.finish_and_clear();
 
     let stats = scraper.get_stats();
 
@@ -249,7 +274,7 @@ async fn run_tests(args: &Cli, database: &core::SiteDatabase) -> Result<()> {
     }
 
     let proxy_pool = Vec::new();
-    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool)?);
+    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool, args.timeout)?);
     let semaphore = Arc::new(Semaphore::new(args.max_workers()));
     let failed_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 

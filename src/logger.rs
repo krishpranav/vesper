@@ -30,25 +30,27 @@ impl Logger {
 
     #[allow(dead_code)]
     pub fn print_found(&self, site: &str, url: &str) {
-        if self.no_color {
-            println!("[+] {}: {}", site, url);
+        let msg = if self.no_color {
+            format!("[+] {}: {}", site, url)
         } else {
-            println!("[{}] {}: {}", "+".bright_green(), site.bright_white(), url);
-        }
+            format!("[{}] {}: {}", "+".bright_green(), site.bright_white(), url)
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_found_with_confidence(&self, site: &str, url: &str, status_tag: &str) {
-        if self.no_color {
-            println!("[+] {}: {} {}", site, url, status_tag);
+        let msg = if self.no_color {
+            format!("[+] {}: {} {}", site, url, status_tag)
         } else {
-            println!(
+            format!(
                 "[{}] {}: {} {}",
                 "+".bright_green(),
                 site.bright_white(),
                 url,
                 status_tag.bright_cyan()
-            );
-        }
+            )
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_not_found(&self, site: &str) {
@@ -56,30 +58,32 @@ impl Logger {
             return;
         }
 
-        if self.no_color {
-            println!("[-] {}: Not Found!", site);
+        let msg = if self.no_color {
+            format!("[-] {}: Not Found!", site)
         } else {
-            println!(
+            format!(
                 "[{}] {}: {}",
                 "-".bright_red(),
                 site,
                 "Not Found!".bright_yellow()
-            );
-        }
+            )
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_blocked(&self, site: &str, reason: &str) {
-        if self.no_color {
-            println!("[⊗] {}: BLOCKED: {}", site, reason);
+        let msg = if self.no_color {
+            format!("[⊗] {}: BLOCKED: {}", site, reason)
         } else {
-            println!(
+            format!(
                 "[{}] {}: {}: {}",
                 "⊗".bright_red().bold(),
                 site.bright_white(),
                 "BLOCKED".bright_red().bold(),
                 reason.yellow()
-            );
-        }
+            )
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_error(&self, site: &str, error: &str) {
@@ -87,41 +91,45 @@ impl Logger {
             return;
         }
 
-        if self.no_color {
-            println!("[!] {}: ERROR: {}", site, error);
+        let msg = if self.no_color {
+            format!("[!] {}: ERROR: {}", site, error)
         } else {
-            println!(
+            format!(
                 "[{}] {}: {}: {}",
                 "!".bright_red(),
                 site,
                 "ERROR".bright_magenta(),
                 error.bright_red()
-            );
-        }
+            )
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_info(&self, message: &str) {
-        if self.no_color {
-            println!("[*] {}", message);
+        let msg = if self.no_color {
+            format!("[*] {}", message)
         } else {
-            println!("[{}] {}", "*".bright_blue(), message);
-        }
+            format!("[{}] {}", "*".bright_blue(), message)
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_success(&self, message: &str) {
-        if self.no_color {
-            println!("[✓] {}", message);
+        let msg = if self.no_color {
+            format!("[✓] {}", message)
         } else {
-            println!("[{}] {}", "✓".bright_green(), message.bright_white());
-        }
+            format!("[{}] {}", "✓".bright_green(), message.bright_white())
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_warning(&self, message: &str) {
-        if self.no_color {
-            println!("[!] {}", message);
+        let msg = if self.no_color {
+            format!("[!] {}", message)
         } else {
-            println!("[{}] {}", "!".bright_yellow(), message.yellow());
-        }
+            format!("[{}] {}", "!".bright_yellow(), message.yellow())
+        };
+        let _ = self.multi_progress.println(msg);
     }
 
     #[allow(dead_code)]
