@@ -57,12 +57,12 @@ pub struct IntelligentScraper {
 }
 
 impl IntelligentScraper {
-    pub fn new(use_tor: bool, _proxy_list: Vec<String>) -> Result<Self> {
+    pub fn new(use_tor: bool, _proxy_list: Vec<String>, timeout_secs: u64) -> Result<Self> {
         let client = Arc::new(
             Client::builder()
                 .user_agent(USER_AGENTS[0])
-                .timeout(Duration::from_secs(10))
-                .connect_timeout(Duration::from_secs(5))
+                .timeout(Duration::from_secs(timeout_secs))
+                .connect_timeout(Duration::from_secs(timeout_secs / 2 + 1))
                 .redirect(reqwest::redirect::Policy::limited(5))
                 .pool_max_idle_per_host(20)
                 .pool_idle_timeout(Duration::from_secs(90))
@@ -76,7 +76,7 @@ impl IntelligentScraper {
             Some(Arc::new(
                 Client::builder()
                     .user_agent(USER_AGENTS[0])
-                    .timeout(Duration::from_secs(30))
+                    .timeout(Duration::from_secs(timeout_secs + 20))
                     .proxy(proxy)
                     .redirect(reqwest::redirect::Policy::limited(5))
                     .build()?,

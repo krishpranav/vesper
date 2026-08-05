@@ -9,7 +9,7 @@ use clap::Parser;
     long_about = "vesper - User OSINT Across Social Networks.\n\nA powerful tool for investigating usernames across 2000+ social networks and websites."
 )]
 pub struct Cli {
-    #[arg(required_unless_present_any = ["test", "download"])]
+    #[arg(required_unless_present_any = ["test", "download", "input"])]
     pub usernames: Vec<String>,
 
     #[arg(long = "no-color")]
@@ -42,6 +42,14 @@ pub struct Cli {
     /// Export format for --output: json, csv, or txt (auto-detected from extension if omitted)
     #[arg(long = "format", value_name = "FORMAT", value_parser = ["json", "csv", "txt"])]
     pub format: Option<String>,
+
+    /// Request timeout in seconds
+    #[arg(long = "timeout", value_name = "SECONDS", default_value_t = 10)]
+    pub timeout: u64,
+
+    /// Read usernames from file (one per line)
+    #[arg(short = 'i', long = "input", value_name = "FILE")]
+    pub input: Option<String>,
 
     #[arg(long = "test")]
     pub test: bool,
