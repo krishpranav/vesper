@@ -5,6 +5,7 @@ mod downloader;
 mod export;
 mod logger;
 mod scraper;
+mod tui;
 
 use anyhow::{Context, Result};
 use cli::Cli;
@@ -89,10 +90,32 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    if args.tui {
+        if target_usernames.is_empty() {
+            println!("Error: No usernames provided for TUI.");
+            return Ok(());
+        }
+        
+        let username = target_usernames[0].clone();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        
+        let db_clone = database.clone();
+        let args_clone = args.clone();
+        
+        let _handle = tokio::spawn(async move {
+            let _ = scan_username(&username, &args_clone, &db_clone, Some(tx.clone())).await;
+            let _ = tx.send(tui::AppEvent::Done);
+        });
+
+        let app = tui::App::new(username);
+        tui::run_tui(app, rx)?;
+        return Ok(());
+    }
+
     let mut reports = Vec::new();
 
     for username in &target_usernames {
-        reports.push(scan_username(username, &args, &database).await?);
+        reports.push(scan_username(username, &args, &database, None).await?);
     }
 
     if let Some(output_path) = &args.output {
@@ -107,9 +130,12 @@ async fn scan_username(
     username: &str,
     args: &Cli,
     database: &core::SiteDatabase,
+    tui_tx: Option<tokio::sync::mpsc::UnboundedSender<tui::AppEvent>>,
 ) -> Result<UsernameScanReport> {
     let logger = Logger::new(args.no_color, args.verbose);
-    logger.print_banner(username);
+    if tui_tx.is_none() {
+        logger.print_banner(username);
+    }
 
     let sites = filter_sites(database, args.site.as_deref());
     let start_time = Instant::now();
@@ -174,6 +200,8 @@ async fn scan_username(
         let args = args.clone();
         let logger = logger.clone();
         let pb = pb.clone();
+        let tui_tx = tui_tx.clone();
+        let total_sites = sites.len();
 
         let task = tokio::spawn(async move {
             let _permit = semaphore.acquire().await.unwrap();
@@ -198,33 +226,53 @@ async fn scan_username(
 
             if result.exist {
                 found_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                logger.print_found_with_confidence(&site_name, &result.link, &result.status_tag());
+                
+                if let Some(tx) = &tui_tx {
+                    let _ = tx.send(tui::AppEvent::Result(result.clone()));
+                    let _ = tx.send(tui::AppEvent::Log(format!("[+] Found on {}", site_name)));
+                } else {
+                    logger.print_found_with_confidence(&site_name, &result.link, &result.status_tag());
+                }
 
                 if let Some(chrome) = chrome {
                     if let Err(e) =
                         chrome::take_screenshot(&username, &site_name, &result.link, &chrome)
                     {
-                        logger
-                            .print_warning(&format!("Screenshot failed for {}: {}", site_name, e));
+                        if tui_tx.is_none() {
+                            logger.print_warning(&format!("Screenshot failed for {}: {}", site_name, e));
+                        }
                     }
                 }
 
                 if let Some(registry) = downloader_registry {
                     if let Err(e) = registry.download(&site_name, &result.link, &username).await {
-                        logger.print_warning(&format!("Download failed for {}: {}", site_name, e));
+                        if tui_tx.is_none() {
+                            logger.print_warning(&format!("Download failed for {}: {}", site_name, e));
+                        }
                     }
                 }
             } else if result.error {
-                if result.status == ResultStatus::Blocked {
-                    logger.print_blocked(&site_name, &result.error_msg);
+                if let Some(tx) = &tui_tx {
+                    let _ = tx.send(tui::AppEvent::Log(format!("[!] Error on {}: {}", site_name, result.error_msg)));
                 } else {
-                    logger.print_error(&site_name, &result.error_msg);
+                    if result.status == ResultStatus::Blocked {
+                        logger.print_blocked(&site_name, &result.error_msg);
+                    } else {
+                        logger.print_error(&site_name, &result.error_msg);
+                    }
                 }
             } else if args.verbose {
-                logger.print_not_found(&site_name);
+                if tui_tx.is_none() {
+                    logger.print_not_found(&site_name);
+                }
             }
 
             pb.inc(1);
+            if let Some(tx) = &tui_tx {
+                let current = pb.position() as usize;
+                let _ = tx.send(tui::AppEvent::Progress { current, total: total_sites });
+            }
+            
             result
         });
 
@@ -248,8 +296,10 @@ async fn scan_username(
     let likely = likely_count.load(std::sync::atomic::Ordering::SeqCst);
     let blocked = blocked_count.load(std::sync::atomic::Ordering::SeqCst);
 
-    logger.print_summary(found, sites.len(), elapsed);
-    logger.print_intelligence_summary(confirmed, likely, blocked, &stats);
+    if tui_tx.is_none() {
+        logger.print_summary(found, sites.len(), elapsed);
+        logger.print_intelligence_summary(confirmed, likely, blocked, &stats);
+    }
 
     Ok(UsernameScanReport {
         username: username.to_string(),

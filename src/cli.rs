@@ -51,6 +51,10 @@ pub struct Cli {
     #[arg(short = 'i', long = "input", value_name = "FILE")]
     pub input: Option<String>,
 
+    /// Launch interactive TUI dashboard
+    #[arg(long = "tui")]
+    pub tui: bool,
+
     #[arg(long = "test")]
     pub test: bool,
 }
