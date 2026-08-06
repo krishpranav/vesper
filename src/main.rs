@@ -97,13 +97,14 @@ async fn main() -> Result<()> {
         }
         
         let username = target_usernames[0].clone();
+        let username_clone = username.clone();
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         
         let db_clone = database.clone();
         let args_clone = args.clone();
         
         let _handle = tokio::spawn(async move {
-            let _ = scan_username(&username, &args_clone, &db_clone, Some(tx.clone())).await;
+            let _ = scan_username(&username_clone, &args_clone, &db_clone, Some(tx.clone())).await;
             let _ = tx.send(tui::AppEvent::Done);
         });
 
