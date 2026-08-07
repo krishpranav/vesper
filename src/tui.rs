@@ -78,7 +78,8 @@ fn run_app<B: Backend>(
     app: &mut App,
     rx: &mut UnboundedReceiver<AppEvent>,
 ) -> Result<()> {
-    let tick_rate = Duration::from_millis(100);
+    // Set tick rate to 16ms (~60fps) for lower latency event handling and smooth UI updates
+    let tick_rate = Duration::from_millis(16);
 
     loop {
         terminal.draw(|f| ui(f, app))?;
@@ -86,6 +87,9 @@ fn run_app<B: Backend>(
         if crossterm::event::poll(tick_rate)? {
             if let Event::Key(key) = event::read()? {
                 if let KeyCode::Char('q') | KeyCode::Esc = key.code {
+                    return Ok(());
+                }
+                if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
                     return Ok(());
                 }
             }
@@ -151,12 +155,21 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
         let conf_str = if res.confidence > 0.0 {
             format!("{:.0}%", res.confidence * 100.0)
         } else {
-            String::new()
+            String::from("-")
         };
+        
+        let status_color = match res.status.as_tag() {
+            "CONFIRMED" | "LIKELY" => Color::Green,
+            "NOT_FOUND" => Color::Red,
+            "PRIVATE" => Color::Yellow,
+            "BLOCKED" | "SOFT_404" | "REDIRECTED" | "ERROR" => Color::Gray,
+            _ => Color::White,
+        };
+
         Row::new(vec![
             Cell::from(res.site.clone()),
             Cell::from(res.link.clone()),
-            Cell::from(res.status.as_tag()),
+            Cell::from(res.status.as_tag()).style(Style::default().fg(status_color)),
             Cell::from(conf_str),
         ])
     });
@@ -186,9 +199,11 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
     };
     
     let status_str = if app.is_done {
-        "COMPLETED"
+        "✓ COMPLETED".to_string()
     } else {
-        "SCANNING"
+        let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+            [(app.start_time.elapsed().as_millis() / 80) as usize % 10];
+        format!("{} SCANNING", spinner)
     };
 
     let progress_text = format!(
