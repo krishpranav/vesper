@@ -91,11 +91,13 @@ impl Logger {
             return;
         }
 
+        let time = chrono::Local::now().format("%H:%M:%S").to_string();
         let msg = if self.no_color {
-            format!("[!] {}: ERROR: {}", site, error)
+            format!("[{}] [!] {}: ERROR: {}", time, site, error)
         } else {
             format!(
-                "[{}] {}: {}: {}",
+                "[{}] [{}] {}: {}: {}",
+                time.dimmed(),
                 "!".bright_red(),
                 site,
                 "ERROR".bright_magenta(),
@@ -106,28 +108,31 @@ impl Logger {
     }
 
     pub fn print_info(&self, message: &str) {
+        let time = chrono::Local::now().format("%H:%M:%S").to_string();
         let msg = if self.no_color {
-            format!("[*] {}", message)
+            format!("[{}] [*] {}", time, message)
         } else {
-            format!("[{}] {}", "*".bright_blue(), message)
+            format!("[{}] [{}] {}", time.dimmed(), "*".bright_blue(), message)
         };
         let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_success(&self, message: &str) {
+        let time = chrono::Local::now().format("%H:%M:%S").to_string();
         let msg = if self.no_color {
-            format!("[✓] {}", message)
+            format!("[{}] [✓] {}", time, message)
         } else {
-            format!("[{}] {}", "✓".bright_green(), message.bright_white())
+            format!("[{}] [{}] {}", time.dimmed(), "✓".bright_green(), message.bright_white())
         };
         let _ = self.multi_progress.println(msg);
     }
 
     pub fn print_warning(&self, message: &str) {
+        let time = chrono::Local::now().format("%H:%M:%S").to_string();
         let msg = if self.no_color {
-            format!("[!] {}", message)
+            format!("[{}] [!] {}", time, message)
         } else {
-            format!("[{}] {}", "!".bright_yellow(), message.yellow())
+            format!("[{}] [{}] {}", time.dimmed(), "!".bright_yellow(), message.yellow())
         };
         let _ = self.multi_progress.println(msg);
     }
