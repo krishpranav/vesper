@@ -39,8 +39,8 @@ pub struct Cli {
     #[arg(short = 'o', long = "output", value_name = "FILE")]
     pub output: Option<String>,
 
-    /// Export format for --output: json, csv, or txt (auto-detected from extension if omitted)
-    #[arg(long = "format", value_name = "FORMAT", value_parser = ["json", "csv", "txt"])]
+    /// Export format for --output: json, csv, txt, or md (auto-detected from extension if omitted)
+    #[arg(long = "format", value_name = "FORMAT", value_parser = ["json", "csv", "txt", "md"])]
     pub format: Option<String>,
 
     /// Request timeout in seconds

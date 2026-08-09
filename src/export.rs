@@ -12,6 +12,7 @@ pub enum ExportFormat {
     Json,
     Csv,
     Txt,
+    Markdown,
 }
 
 impl ExportFormat {
@@ -21,6 +22,7 @@ impl ExportFormat {
             "json" => Some(ExportFormat::Json),
             "csv" => Some(ExportFormat::Csv),
             "txt" | "text" => Some(ExportFormat::Txt),
+            "md" | "markdown" => Some(ExportFormat::Markdown),
             _ => None,
         }
     }
@@ -39,6 +41,7 @@ impl ExportFormat {
             "json" => Some(ExportFormat::Json),
             "csv" => Some(ExportFormat::Csv),
             "txt" | "text" => Some(ExportFormat::Txt),
+            "md" | "markdown" => Some(ExportFormat::Markdown),
             _ => None,
         }
     }
@@ -87,6 +90,7 @@ pub fn write_report(
         ExportFormat::Json => render_json(&report)?,
         ExportFormat::Csv => render_csv(&report),
         ExportFormat::Txt => render_txt(&report),
+        ExportFormat::Markdown => render_markdown(&report),
     };
 
     fs::write(output_path, content)
@@ -96,6 +100,7 @@ pub fn write_report(
         ExportFormat::Json => "JSON",
         ExportFormat::Csv => "CSV",
         ExportFormat::Txt => "Text",
+        ExportFormat::Markdown => "Markdown",
     };
 
     println!("[✓] {} report written to {}", format_label, output_path);
@@ -245,5 +250,36 @@ fn render_txt(report: &ScanReport) -> String {
     writeln!(buf, "  End of Report").unwrap();
     writeln!(buf, "═══════════════════════════════════════════════════════════════").unwrap();
 
+    buf
+}
+
+// ── Markdown ──────────────────────────────────────────────────────────────────
+
+fn render_markdown(report: &ScanReport) -> String {
+    let mut buf = String::new();
+    
+    writeln!(buf, "# Vesper Scan Report\n").unwrap();
+    writeln!(buf, "- **Generated:** {}", report.generated_at).unwrap();
+    writeln!(buf, "- **Database Sites:** {}\n", report.database_sites).unwrap();
+    
+    for scan in &report.usernames {
+        writeln!(buf, "## Username: `{}`\n", scan.username).unwrap();
+        writeln!(buf, "- **Checked:** {}", scan.checked).unwrap();
+        writeln!(buf, "- **Found:** {}", scan.found).unwrap();
+        writeln!(buf, "- **Time:** {:.2}s\n", scan.elapsed_secs).unwrap();
+        
+        let found_results: Vec<_> = scan.results.iter().filter(|r| r.exist).collect();
+        if !found_results.is_empty() {
+            writeln!(buf, "### Found Profiles\n").unwrap();
+            writeln!(buf, "| Site | Link | Status | Confidence |").unwrap();
+            writeln!(buf, "|------|------|--------|------------|").unwrap();
+            for r in &found_results {
+                let conf = if r.confidence > 0.0 { format!("{:.0}%", r.confidence * 100.0) } else { "-".to_string() };
+                writeln!(buf, "| {} | {} | {} | {} |", r.site, r.link, r.status.as_tag(), conf).unwrap();
+            }
+            writeln!(buf).unwrap();
+        }
+    }
+    
     buf
 }
