@@ -190,11 +190,12 @@ pub async fn load_site_data(path: &str, update: bool) -> Result<SiteDatabase> {
         update_database(path).await?;
     }
 
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read database file: {}", path))?;
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("Failed to open database file: {}", path))?;
+    let reader = std::io::BufReader::new(file);
 
     let data: SiteDatabase =
-        serde_json::from_str(&content).with_context(|| "Failed to parse database JSON")?;
+        serde_json::from_reader(reader).with_context(|| "Failed to parse database JSON")?;
 
     Ok(data)
 }
