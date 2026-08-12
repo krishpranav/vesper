@@ -33,6 +33,14 @@ pub struct Cli {
     #[arg(long = "database", value_name = "DATABASE")]
     pub database: Option<String>,
 
+    /// Random delay between requests in milliseconds (e.g. 50-200)
+    #[arg(long = "jitter", value_name = "MS")]
+    pub jitter: Option<u64>,
+
+    /// Load list of HTTP/SOCKS5 proxies from file for rotation
+    #[arg(long = "proxies", value_name = "FILE")]
+    pub proxies: Option<String>,
+
     #[arg(long = "site", value_name = "SITE")]
     pub site: Option<String>,
 
