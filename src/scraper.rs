@@ -53,11 +53,13 @@ impl ScraperStats {
 pub struct IntelligentScraper {
     client: Arc<Client>,
     tor_client: Option<Arc<Client>>,
+    proxy_clients: Vec<Arc<Client>>,
+    jitter: Option<u64>,
     stats: Arc<std::sync::Mutex<ScraperStats>>,
 }
 
 impl IntelligentScraper {
-    pub fn new(use_tor: bool, _proxy_list: Vec<String>, timeout_secs: u64) -> Result<Self> {
+    pub fn new(use_tor: bool, proxy_list: Vec<String>, timeout_secs: u64, jitter: Option<u64>) -> Result<Self> {
         let client = Arc::new(
             Client::builder()
                 .user_agent(USER_AGENTS[0])
@@ -85,9 +87,26 @@ impl IntelligentScraper {
             None
         };
 
+        let mut proxy_clients = Vec::new();
+        for proxy_url in proxy_list {
+            if let Ok(proxy) = Proxy::all(&proxy_url) {
+                if let Ok(client) = Client::builder()
+                    .user_agent(USER_AGENTS[0])
+                    .timeout(Duration::from_secs(timeout_secs))
+                    .proxy(proxy)
+                    .redirect(reqwest::redirect::Policy::limited(5))
+                    .build()
+                {
+                    proxy_clients.push(Arc::new(client));
+                }
+            }
+        }
+
         Ok(Self {
             client,
             tor_client,
+            proxy_clients,
+            jitter,
             stats: Arc::new(std::sync::Mutex::new(ScraperStats::new())),
         })
     }
@@ -171,8 +190,15 @@ impl IntelligentScraper {
             }
         }
 
+        if let Some(j) = self.jitter {
+            tokio::time::sleep(Duration::from_millis(fastrand::u64(0..=j))).await;
+        }
+
         let client = if use_tor && self.tor_client.is_some() {
             self.tor_client.as_ref().unwrap()
+        } else if !self.proxy_clients.is_empty() {
+            let idx = fastrand::usize(0..self.proxy_clients.len());
+            &self.proxy_clients[idx]
         } else {
             &self.client
         };
