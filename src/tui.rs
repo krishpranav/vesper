@@ -33,6 +33,8 @@ pub struct App {
     pub progress_total: usize,
     pub start_time: Instant,
     pub is_done: bool,
+    pub sort_status: bool,
+    pub filter_found: bool,
 }
 
 impl App {
@@ -45,6 +47,8 @@ impl App {
             progress_total: 0,
             start_time: Instant::now(),
             is_done: false,
+            sort_status: false,
+            filter_found: true,
         }
     }
 }
@@ -92,6 +96,12 @@ fn run_app<B: Backend>(
                 if key.code == KeyCode::Char('c') && key.modifiers.contains(event::KeyModifiers::CONTROL) {
                     return Ok(());
                 }
+                if key.code == KeyCode::Char('s') {
+                    app.sort_status = !app.sort_status;
+                }
+                if key.code == KeyCode::Char('f') {
+                    app.filter_found = !app.filter_found;
+                }
             }
         }
 
@@ -104,9 +114,7 @@ fn run_app<B: Backend>(
                     }
                 }
                 AppEvent::Result(res) => {
-                    if res.exist {
-                        app.found_results.push(res);
-                    }
+                    app.found_results.push(res);
                 }
                 AppEvent::Progress { current, total } => {
                     app.progress_current = current;
@@ -131,9 +139,11 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
         .split(f.size());
 
     let header_text = format!(
-        " Vesper OSINT Dashboard | Target: {} | Elapsed: {:.1}s | (Press 'q' to quit)",
+        " Vesper OSINT Dashboard | Target: {} | Elapsed: {:.1}s | [s]ort: {} | [f]ilter: {} | (Press 'q' to quit)",
         app.current_username,
-        app.start_time.elapsed().as_secs_f32()
+        app.start_time.elapsed().as_secs_f32(),
+        if app.sort_status { "Status" } else { "Site" },
+        if app.filter_found { "Found" } else { "All" }
     );
     let header = Paragraph::new(header_text)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
@@ -151,7 +161,35 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
         .map(|h| Cell::from(*h).style(Style::default().fg(Color::Yellow)));
     let table_header = Row::new(header_cells).style(Style::default().add_modifier(Modifier::BOLD));
 
-    let rows = app.found_results.iter().map(|res| {
+    let mut display_results: Vec<&ScanResult> = app.found_results.iter().filter(|res| {
+        if app.filter_found {
+            res.exist
+        } else {
+            true
+        }
+    }).collect();
+
+    if app.sort_status {
+        display_results.sort_by(|a, b| {
+            let a_score = match a.status.as_tag() {
+                "CONFIRMED" => 0,
+                "LIKELY" => 1,
+                "PRIVATE" => 2,
+                _ => 3,
+            };
+            let b_score = match b.status.as_tag() {
+                "CONFIRMED" => 0,
+                "LIKELY" => 1,
+                "PRIVATE" => 2,
+                _ => 3,
+            };
+            a_score.cmp(&b_score).then(a.site.cmp(&b.site))
+        });
+    } else {
+        display_results.sort_by(|a, b| a.site.cmp(&b.site));
+    }
+
+    let rows = display_results.into_iter().map(|res| {
         let conf_str = if res.confidence > 0.0 {
             format!("{:.0}%", res.confidence * 100.0)
         } else {
@@ -206,12 +244,13 @@ fn ui(f: &mut ratatui::Frame, app: &App) {
         format!("{} SCANNING", spinner)
     };
 
+    let found_count = app.found_results.iter().filter(|r| r.exist).count();
     let progress_text = format!(
         " [{}] {} / {} sites checked | Found: {} ",
         status_str,
         app.progress_current,
         app.progress_total,
-        app.found_results.len()
+        found_count
     );
     
     let progress_width = chunks[2].width as usize - progress_text.len() - 4;
