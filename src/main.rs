@@ -155,8 +155,18 @@ async fn scan_username(
         });
     }
 
-    let proxy_pool = Vec::new();
-    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool, args.timeout)?);
+    let proxy_pool = if let Some(path) = &args.proxies {
+        std::fs::read_to_string(path)
+            .unwrap_or_default()
+            .lines()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool, args.timeout, args.jitter)?);
 
     let chrome = if args.screenshot {
         let mut chrome = chrome::Chrome::new(
@@ -324,8 +334,18 @@ async fn run_tests(args: &Cli, database: &core::SiteDatabase) -> Result<()> {
         return Ok(());
     }
 
-    let proxy_pool = Vec::new();
-    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool, args.timeout)?);
+    let proxy_pool = if let Some(path) = &args.proxies {
+        std::fs::read_to_string(path)
+            .unwrap_or_default()
+            .lines()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let scraper = Arc::new(IntelligentScraper::new(args.tor, proxy_pool, args.timeout, args.jitter)?);
     let semaphore = Arc::new(Semaphore::new(args.max_workers()));
     let failed_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
