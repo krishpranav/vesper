@@ -120,19 +120,21 @@ fn render_csv(report: &ScanReport) -> String {
     let mut buf = String::new();
 
     // Header row
-    writeln!(buf, "username,site,url,status,confidence,found").unwrap();
+    writeln!(buf, "username,site,url,status,confidence,found,title,bio").unwrap();
 
     for scan in &report.usernames {
         for result in &scan.results {
             writeln!(
                 buf,
-                "{},{},{},{},{:.2},{}",
+                "{},{},{},{},{:.2},{},{},{}",
                 csv_escape(&result.username),
                 csv_escape(&result.site),
                 csv_escape(&result.link),
                 csv_escape(result.status.as_tag()),
                 result.confidence,
                 result.exist,
+                csv_escape(result.page_title.as_deref().unwrap_or("")),
+                csv_escape(result.page_bio.as_deref().unwrap_or("")),
             )
             .unwrap();
         }
@@ -202,6 +204,12 @@ fn render_txt(report: &ScanReport) -> String {
                     result.site, result.link, status_label, confidence_str
                 )
                 .unwrap();
+                if let Some(ref title) = result.page_title {
+                    writeln!(buf, "          Name: {}", title).unwrap();
+                }
+                if let Some(ref bio) = result.page_bio {
+                    writeln!(buf, "          Bio: {}", bio).unwrap();
+                }
             }
         }
 
@@ -271,11 +279,15 @@ fn render_markdown(report: &ScanReport) -> String {
         let found_results: Vec<_> = scan.results.iter().filter(|r| r.exist).collect();
         if !found_results.is_empty() {
             writeln!(buf, "### Found Profiles\n").unwrap();
-            writeln!(buf, "| Site | Link | Status | Confidence |").unwrap();
-            writeln!(buf, "|------|------|--------|------------|").unwrap();
+            writeln!(buf, "| Site | Link | Status | Confidence | Extracted Name | Extracted Bio |").unwrap();
+            writeln!(buf, "|------|------|--------|------------|----------------|---------------|").unwrap();
             for r in &found_results {
                 let conf = if r.confidence > 0.0 { format!("{:.0}%", r.confidence * 100.0) } else { "-".to_string() };
-                writeln!(buf, "| {} | {} | {} | {} |", r.site, r.link, r.status.as_tag(), conf).unwrap();
+                let t = r.page_title.as_deref().unwrap_or("-").replace("|", "\\|");
+                // Trim bio a bit to prevent massive markdown tables
+                let b_raw = r.page_bio.as_deref().unwrap_or("-").replace("|", "\\|").replace("\n", " ");
+                let b = if b_raw.len() > 150 { format!("{}...", &b_raw[..147]) } else { b_raw };
+                writeln!(buf, "| {} | {} | {} | {} | {} | {} |", r.site, r.link, r.status.as_tag(), conf, t, b).unwrap();
             }
             writeln!(buf).unwrap();
         }

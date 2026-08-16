@@ -158,6 +158,34 @@ impl IntelligentScraper {
         }
     }
 
+    fn extract_metadata(&self, body: &str) -> (Option<String>, Option<String>) {
+        let title_re = Regex::new(r"(?i)<title[^>]*>\s*(.*?)\s*</title>").unwrap();
+        
+        let title = match title_re.captures(body) {
+            Ok(Some(cap)) => cap.get(1).map(|m| m.as_str().to_string()),
+            _ => None,
+        };
+
+        let mut bio = None;
+        let meta_tags_re = Regex::new(r"(?i)<meta\s+([^>]+)>").unwrap();
+        let content_re = Regex::new(r#"(?i)content=['"]([^'"]+)['"]"#).unwrap();
+        
+        for cap_res in meta_tags_re.captures_iter(body) {
+            if let Ok(cap) = cap_res {
+                let attrs = cap.get(1).map_or("", |m| m.as_str());
+                let attrs_lower = attrs.to_lowercase();
+                if attrs_lower.contains("name=\"description\"") || attrs_lower.contains("name='description'") {
+                    if let Ok(Some(content_cap)) = content_re.captures(attrs) {
+                        bio = content_cap.get(1).map(|m| m.as_str().to_string());
+                        break;
+                    }
+                }
+            }
+        }
+
+        (title, bio)
+    }
+
     pub async fn check_username_intelligent(
         &self,
         username: &str,
@@ -231,22 +259,25 @@ impl IntelligentScraper {
             }
         }
 
+        let status_code = response.status();
+        let final_url = response.url().to_string();
+        
+        let body = match response.text().await {
+            Ok(text) => text,
+            Err(e) => return result.with_error(e.to_string(), ResultStatus::Error),
+        };
+
         let (exists, confidence, status) = match data.error_type.as_str() {
             "status_code" => {
-                if response.status().is_success() {
+                if status_code.is_success() {
                     (true, 0.85, ResultStatus::Confirmed)
-                } else if response.status().as_u16() == 404 {
+                } else if status_code.as_u16() == 404 {
                     (false, 0.90, ResultStatus::NotFound)
                 } else {
                     (false, 0.60, ResultStatus::NotFound)
                 }
             }
             "message" => {
-                let body = match response.text().await {
-                    Ok(text) => text,
-                    Err(e) => return result.with_error(e.to_string(), ResultStatus::Error),
-                };
-
                 let has_error_msg = body.contains(&data.error_msg);
 
                 if !has_error_msg {
@@ -261,8 +292,7 @@ impl IntelligentScraper {
                 }
             }
             "response_url" => {
-                let final_url = response.url().to_string();
-                if response.status().is_success() && final_url == url {
+                if status_code.is_success() && final_url == url {
                     (true, 0.90, ResultStatus::Confirmed)
                 } else {
                     (false, 0.85, ResultStatus::NotFound)
@@ -283,7 +313,8 @@ impl IntelligentScraper {
             .update_timing(site.to_string(), elapsed);
 
         if exists {
-            result.found(url.clone(), url.clone(), status, confidence)
+            let (page_title, page_bio) = self.extract_metadata(&body);
+            result.found(url.clone(), url.clone(), status, confidence, page_title, page_bio)
         } else {
             result.not_found(url, status, confidence)
         }

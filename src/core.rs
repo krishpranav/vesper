@@ -115,6 +115,8 @@ pub struct ScanResult {
     pub error_msg: String,
     pub status: ResultStatus,
     pub confidence: ConfidenceScore,
+    pub page_title: Option<String>,
+    pub page_bio: Option<String>,
 }
 
 impl ScanResult {
@@ -131,6 +133,8 @@ impl ScanResult {
             error_msg: String::new(),
             status: ResultStatus::NotFound,
             confidence: 0.0,
+            page_title: None,
+            page_bio: None,
         }
     }
 
@@ -148,12 +152,16 @@ impl ScanResult {
         link: String,
         status: ResultStatus,
         confidence: ConfidenceScore,
+        page_title: Option<String>,
+        page_bio: Option<String>,
     ) -> Self {
         self.exist = true;
         self.url = url;
         self.link = link;
         self.status = status;
         self.confidence = confidence.clamp(0.0, 1.0);
+        self.page_title = page_title;
+        self.page_bio = page_bio;
         self
     }
 

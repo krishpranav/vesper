@@ -242,7 +242,13 @@ async fn scan_username(
                     let _ = tx.send(tui::AppEvent::Result(result.clone()));
                     let _ = tx.send(tui::AppEvent::Log(format!("[+] Found on {}", site_name)));
                 } else {
-                    logger.print_found_with_confidence(&site_name, &result.link, &result.status_tag());
+                    logger.print_found_with_confidence(
+                        &site_name, 
+                        &result.link, 
+                        &result.status_tag(),
+                        result.page_title.as_deref(),
+                        result.page_bio.as_deref(),
+                    );
                 }
 
                 if let Some(chrome) = chrome {

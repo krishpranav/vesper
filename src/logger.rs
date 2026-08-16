@@ -38,8 +38,15 @@ impl Logger {
         let _ = self.multi_progress.println(msg);
     }
 
-    pub fn print_found_with_confidence(&self, site: &str, url: &str, status_tag: &str) {
-        let msg = if self.no_color {
+    pub fn print_found_with_confidence(
+        &self,
+        site: &str,
+        url: &str,
+        status_tag: &str,
+        title: Option<&str>,
+        bio: Option<&str>,
+    ) {
+        let mut msg = if self.no_color {
             format!("[+] {}: {} {}", site, url, status_tag)
         } else {
             format!(
@@ -50,6 +57,24 @@ impl Logger {
                 status_tag.bright_cyan()
             )
         };
+
+        if let Some(t) = title {
+            if self.no_color {
+                msg.push_str(&format!("\n    Name: {}", t));
+            } else {
+                msg.push_str(&format!("\n    {} {}", "Name:".dimmed(), t.bright_white()));
+            }
+        }
+        if let Some(b) = bio {
+            // Trim very long bios for CLI display
+            let b_trimmed = if b.len() > 100 { format!("{}...", &b[..97]) } else { b.to_string() };
+            if self.no_color {
+                msg.push_str(&format!("\n    Bio: {}", b_trimmed));
+            } else {
+                msg.push_str(&format!("\n    {} {}", "Bio:".dimmed(), b_trimmed.italic()));
+            }
+        }
+
         let _ = self.multi_progress.println(msg);
     }
 
