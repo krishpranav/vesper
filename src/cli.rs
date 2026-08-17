@@ -63,6 +63,10 @@ pub struct Cli {
     #[arg(long = "tui")]
     pub tui: bool,
 
+    /// Auto-generate username variants and scan all of them
+    #[arg(long = "variants")]
+    pub variants: bool,
+
     #[arg(long = "test")]
     pub test: bool,
 }

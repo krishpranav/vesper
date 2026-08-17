@@ -6,6 +6,7 @@ mod export;
 mod logger;
 mod scraper;
 mod tui;
+mod variants;
 
 use anyhow::{Context, Result};
 use cli::Cli;
@@ -83,6 +84,18 @@ async fn main() -> Result<()> {
                 target_usernames.push(trimmed.to_string());
             }
         }
+    }
+
+    // ── Variant Generation ────────────────────────────────────────────────
+    if args.variants && !target_usernames.is_empty() {
+        let mut expanded = Vec::new();
+        for base in &target_usernames {
+            let vars = variants::generate_variants(base);
+            variants::print_variant_summary(base, &vars, args.no_color);
+            expanded.push(base.clone());
+            expanded.extend(vars);
+        }
+        target_usernames = expanded;
     }
     
     if target_usernames.is_empty() {

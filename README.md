@@ -116,6 +116,20 @@ vesper user --output results --format csv
 vesper --test
 ```
 
+### Smart Username Variants
+
+Automatically generate and scan common permutations of a username (separators, numeric suffixes, l33t speak, alt-account prefixes like `theuser`, `realuser`, etc.):
+
+```bash
+vesper krishpranav --variants
+```
+
+### Interactive TUI Dashboard
+
+```bash
+vesper user --tui
+```
+
 ### All Options
 
 ```bash
@@ -162,11 +176,17 @@ vesper --help
 | `--screenshot` | `-s` | Take screenshots of found profiles |
 | `--download` | `-d` | Download profile content |
 | `--output <FILE>` | `-o` | Save scan results (format auto-detected from extension) |
-| `--format <FORMAT>` | | Export format: `json`, `csv`, or `txt` (overrides extension) |
+| `--format <FORMAT>` | | Export format: `json`, `csv`, `txt`, or `md` (overrides extension) |
 | `--update` | | Update site database from Sherlock |
 | `--database <PATH>` | | Use custom database file |
 | `--site <SITE>` | | Check specific site only |
 | `--test` | | Run site validation tests |
+| `--variants` | | Auto-generate and scan username permutations |
+| `--jitter <MS>` | | Random delay (ms) between requests to evade rate limiters |
+| `--proxies <FILE>` | | Load a list of HTTP/SOCKS5 proxies for rotation |
+| `--tui` | | Launch interactive TUI dashboard |
+| `--input <FILE>` | `-i` | Read usernames from a file (one per line) |
+| `--timeout <SECS>` | | Request timeout in seconds (default: 10) |
 
 ## 🔧 Configuration
 
